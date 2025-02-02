@@ -1,0 +1,49 @@
+#pragma kernel Update
+#pragma kernel InitBackground
+
+RWTexture2D<float4> Canvas;
+
+float _CanvasWidth;
+float _CanvasHeight;
+float4 _BackgroundColor;
+
+float _BrushSize;
+float4 _PreviousMousePos;
+float4 _MousePosition;
+float _StrokeSmoothingInterval;
+float4 _BrushColor;
+bool mouseDown;
+
+float4 Brush(float2 pixelPos, float4 currentColor, float4 brushColor, float brSize,
+       float4 previousMousePosition, float4 mousePosition, float strokeSmoothingInterval)
+{
+    for (float i = 0; i < 1.0; i += strokeSmoothingInterval)
+    {
+        const float2 mousePos = lerp(previousMousePosition, mousePosition, i);
+        if (length(pixelPos - mousePos) < brSize)
+            return brushColor;
+    }
+    return currentColor;
+
+}
+
+[numthreads(8,8,1)]
+void InitBackground (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _CanvasWidth ||id.y >= _CanvasHeight)
+        return;
+    Canvas[id.xy] = _BackgroundColor;
+}
+
+[numthreads(8,8,1)]
+void Update(uint3 id : SV_DispatchThreadID)
+{
+    if (!mouseDown)
+        return;
+    if (id.x >= _CanvasWidth || id.y >= _CanvasHeight)
+        return;
+    Canvas[id.xy] = Brush(id.xy, Canvas[id.xy], _BrushColor, _BrushSize, 
+                    _PreviousMousePos, _MousePosition, _StrokeSmoothingInterval);
+}
+
+
