@@ -5,13 +5,17 @@ using UnityEngine.UI;
 public class DrawManager : MonoBehaviour
 {
     [SerializeField] ComputeShader shader;
-    [SerializeField] Color brushColor;
     [SerializeField] Slider brushSlider;
+    [SerializeField] GameObject inputParent;
 
+    public Color brushColor;
     float brushSize = 10f;
     float smoothingInterval = 0.01f;
     RenderTexture canvasTexture;
     Vector4 previousMousePos;
+    Vector3 input;
+    bool isPressed;
+    bool touchDetected;
 
     void Start()
     {
@@ -30,12 +34,24 @@ public class DrawManager : MonoBehaviour
 
     void Update()
     {
-        if (!UIElementInUse.isInUse && Input.GetMouseButton(0))
+        if (!UIElementInUse.isInUse && (Input.GetMouseButton(0) || Input.touchCount > 0))
         {
+            if (Input.GetMouseButton(0))
+            {
+                input = Input.mousePosition;
+                touchDetected = false;
+            }
+            else
+            {
+                input = Input.GetTouch(0).position;
+                touchDetected = true;
+            }
+            isPressed = true;
+
             int updateKernel = shader.FindKernel("Update");
             shader.SetVector("_PreviousMousePosition", previousMousePos);
-            shader.SetVector("_MousePosition", Input.mousePosition);
-            shader.SetBool("_MouseDown", Input.GetMouseButton(0));
+            shader.SetVector("_MousePosition", input);
+            shader.SetBool("_MouseDown", isPressed);
             shader.SetFloat("_BrushSize", brushSize);
             shader.SetVector("_BrushColour", brushColor);
             shader.SetFloat("_StrokeSmoothingInterval", smoothingInterval);
@@ -44,11 +60,15 @@ public class DrawManager : MonoBehaviour
             shader.GetKernelThreadGroupSizes(updateKernel,
                 out uint xGroupSize, out uint yGroupSize, out _);
             shader.Dispatch(updateKernel,
-                Mathf.CeilToInt(canvasTexture.width / (float) xGroupSize),
-                Mathf.CeilToInt(canvasTexture.height / (float) yGroupSize),
+                Mathf.CeilToInt(canvasTexture.width / (float)xGroupSize),
+                Mathf.CeilToInt(canvasTexture.height / (float)yGroupSize),
                 1);
         }
-        previousMousePos = Input.mousePosition;
+        if (touchDetected && Input.GetTouch(0).phase != TouchPhase.Ended)
+            previousMousePos = Input.GetTouch(0).position;
+        else
+            previousMousePos = Input.mousePosition;
+        isPressed = false;
     }
 
     void OnRenderImage(RenderTexture src, RenderTexture dest)
@@ -56,9 +76,9 @@ public class DrawManager : MonoBehaviour
         Graphics.Blit(canvasTexture, dest);
     }
 
-    public void OnBrushSizeChanged()
+    public void OnBrushSizeChanged(float newValue)
     {
-        brushSize = brushSlider.value;
+        brushSize = newValue;
     }
 
     public void ClearCanvas()
@@ -73,16 +93,23 @@ public class DrawManager : MonoBehaviour
             1);
     }
 
-    public void SaveImage()
+    public void SaveImage(string fileName)
     {
         RenderTexture.active = canvasTexture;
         Texture2D texture = new (canvasTexture.width, canvasTexture.height, TextureFormat.RGBA32, true);
         texture.ReadPixels(new Rect(0, 0, canvasTexture.width, canvasTexture.height), 0, 0);
         RenderTexture.active = null;
         byte[]  bytes = texture.EncodeToPNG();
-        //string path = Application.streamingAssetsPath;
-        string path = "Assets/Images/image.png";
+        string path = $"{Application.streamingAssetsPath}/{fileName}.png";
         System.IO.File.WriteAllBytes(path, bytes);
         Debug.Log("saved to " + path);
+        UIElementInUse.isInUse = false;
+        inputParent.SetActive(false);
+    }
+
+    public void EnabelInputField()
+    {
+        UIElementInUse.isInUse = true;
+        inputParent.SetActive(true);
     }
 }
