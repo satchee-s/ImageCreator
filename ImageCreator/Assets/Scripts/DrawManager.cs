@@ -35,7 +35,7 @@ public class DrawManager : MonoBehaviour
 
     void Update()
     {
-        if (!UIElementInUse.isInUse && (Input.GetMouseButton(0) || Input.touchCount > 0))
+        if (Input.GetMouseButton(0) || Input.touchCount > 0)
         {
             if (Input.touchCount > 0)
             {
@@ -110,7 +110,8 @@ public class DrawManager : MonoBehaviour
     public void SaveImage(string fileName)
     {
         RenderTexture.active = canvasTexture;
-        Texture2D texture = new (canvasTexture.width, canvasTexture.height, TextureFormat.RGBA32, true);
+        int height = (int)(canvasTexture.height - (canvasTexture.height * 0.1));
+        Texture2D texture = new (canvasTexture.width, height, TextureFormat.RGBA32, true);
         texture.ReadPixels(new Rect(0, 0, canvasTexture.width, canvasTexture.height), 0, 0);
         RenderTexture.active = null;
         byte[]  bytes = texture.EncodeToPNG();

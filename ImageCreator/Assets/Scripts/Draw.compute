@@ -43,7 +43,7 @@ void Update(uint3 id : SV_DispatchThreadID)
     if (!_MouseDown)
         return;
 
-    if (id.x >= _CanvasWidth || id.y >= _CanvasHeight)
+    if (id.x >= _CanvasWidth || id.y >= _CanvasHeight - (_CanvasHeight * 0.1))
         return;
 
     _Canvas[id.xy] = HardBrush(id.xy, _Canvas[id.xy], _BrushColour, _BrushSize,
