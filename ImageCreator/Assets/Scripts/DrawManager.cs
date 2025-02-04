@@ -9,13 +9,14 @@ public class DrawManager : MonoBehaviour
     [SerializeField] GameObject inputParent;
 
     public Color brushColor;
-    float brushSize = 10f;
+    float brushSize = 8f;
     float smoothingInterval = 0.01f;
     RenderTexture canvasTexture;
     Vector4 previousMousePos;
-    Vector3 input;
+    Vector3 inputPos;
     bool isPressed;
     bool touchDetected;
+    bool fingerLifted = true;
 
     void Start()
     {
@@ -36,25 +37,27 @@ public class DrawManager : MonoBehaviour
     {
         if (!UIElementInUse.isInUse && (Input.GetMouseButton(0) || Input.touchCount > 0))
         {
-            if (Input.GetMouseButton(0))
+            if (Input.touchCount > 0)
             {
-                input = Input.mousePosition;
-                touchDetected = false;
+                inputPos = Input.GetTouch(0).position;
+                touchDetected = true;
             }
             else
             {
-                input = Input.GetTouch(0).position;
-                touchDetected = true;
-            }
+                inputPos = Input.mousePosition;
+                touchDetected = false;
+                fingerLifted = false;
+            }            
             isPressed = true;
 
             int updateKernel = shader.FindKernel("Update");
             shader.SetVector("_PreviousMousePosition", previousMousePos);
-            shader.SetVector("_MousePosition", input);
+            shader.SetVector("_MousePosition", inputPos);
             shader.SetBool("_MouseDown", isPressed);
             shader.SetFloat("_BrushSize", brushSize);
             shader.SetVector("_BrushColour", brushColor);
             shader.SetFloat("_StrokeSmoothingInterval", smoothingInterval);
+            shader.SetBool("_FingerLifted", fingerLifted);
             shader.SetTexture(updateKernel, "_Canvas", canvasTexture);
 
             shader.GetKernelThreadGroupSizes(updateKernel,
@@ -64,8 +67,19 @@ public class DrawManager : MonoBehaviour
                 Mathf.CeilToInt(canvasTexture.height / (float)yGroupSize),
                 1);
         }
-        if (touchDetected && Input.GetTouch(0).phase != TouchPhase.Ended)
-            previousMousePos = Input.GetTouch(0).position;
+        if (touchDetected)
+        {
+            if (Input.touchCount > 0)
+            {
+                if (Input.GetTouch(0).phase == TouchPhase.Ended)
+                    fingerLifted = true;
+                else
+                {
+                    previousMousePos = Input.GetTouch(0).position;
+                    fingerLifted = false;
+                }
+            }
+        }
         else
             previousMousePos = Input.mousePosition;
         isPressed = false;
